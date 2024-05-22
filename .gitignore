@@ -1,0 +1,7 @@
+.idea
+__pycache__
+TEMP
+FaceImage
+tmp*
+*.jpg
+*.png
