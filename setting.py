@@ -1,10 +1,14 @@
 import os
 import face_recognition
+from insightface.app import FaceAnalysis
 
 FACE_IMG_DIR = "./FaceImage"
 TEMP_DIR = "./TEMP"
 APP_DIR = "./Apps"
-DEFAULT_THRESHOLD = 0.5
+DEFAULT_THRESHOLD = 0.38
+
+DET_MODEL = FaceAnalysis(name='buffalo_sc')
+DET_MODEL.prepare(ctx_id=-1, det_size=(640, 640))
 
 FaceDB = {}
 if os.path.exists(FACE_IMG_DIR):

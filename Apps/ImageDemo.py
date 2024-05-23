@@ -5,21 +5,32 @@ import cv2
 import gradio as gr
 import numpy as np
 import face_recognition
+from insightface.app import FaceAnalysis
 from setting import *
+from tools import *
+
+det_app = FaceAnalysis(name='buffalo_sc', allowed_modules=['detection'])
 
 
-def get_face_info(input_img,threshold):
-    global FaceDB, FACE_IMG_DIR
+def get_face_info(input_img, threshold):
+    global FaceDB, FACE_IMG_DIR, DET_MODEL
 
     if input_img is None:
         return None, "没有图片输入"
 
     start_time = time.time()
-    face_encoding = face_recognition.face_encodings(input_img)
-    if len(face_encoding) > 1:
-        return None, "存在多张人脸"
-    if len(face_encoding) == 0:
+
+    face_det = det_face(DET_MODEL, input_img, ret_center=True)
+    if len(face_det) == 0:
         return None, "没有检测到人脸"
+
+    face_cut, (face_x, face_y, face_w, face_h) = cut_img(input_img, face_det[0], face_det[1],
+                                                         face_det[2] - face_det[0], face_det[3] - face_det[1],
+                                                         expand=1.2)
+
+    face_encoding = face_recognition.face_encodings(face_cut)
+
+
 
     all_face_embedding = []
     all_face_name = []
@@ -30,6 +41,9 @@ def get_face_info(input_img,threshold):
 
     scores = face_recognition.face_distance(all_face_embedding, face_encoding[0])
     scores_arg = np.argsort(scores)[0]
+
+    end_time = time.time()
+
     if scores[scores_arg] > threshold:
         return None, "未知人员"
 
@@ -42,7 +56,7 @@ def get_face_info(input_img,threshold):
         show_img = cv2.imread(show_img_path)
         show_img = cv2.cvtColor(show_img, cv2.COLOR_BGR2RGB)
 
-        return show_img, f"检测到人员: {output_face_name}, 欧式距离: {output_score}, 识别阈值: {threshold}"
+        return show_img, f"检测到人员: {output_face_name}, 欧式距离: {output_score}, 识别阈值: {threshold}, 耗时: {end_time-start_time}"
 
 
 with gr.Row():
@@ -68,6 +82,6 @@ with gr.Row():
 
     image_demo_input_button.click(
         get_face_info,
-        [image_demo_input_image,image_demo_threshold],
+        [image_demo_input_image, image_demo_threshold],
         [image_demo_output_image, image_demo_output_info]
     )
