@@ -7,7 +7,7 @@ from insightface.app import FaceAnalysis
 FACE_IMG_DIR = "./FaceImage"
 TEMP_DIR = "./TEMP"
 APP_DIR = "./Apps"
-DEFAULT_THRESHOLD = 0.8
+DEFAULT_THRESHOLD = 0.9
 
 INS_MODEL = FaceAnalysis(name='buffalo_l')
 INS_MODEL.prepare(ctx_id=-1, det_size=(640, 640))

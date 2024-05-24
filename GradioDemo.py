@@ -38,10 +38,13 @@ def add_face(webcap_img, face_name):
     if len(face_name) == 0:
         return "没有获取到人员名称", None
 
-    face_list = face_embedding(INS_MODEL, webcap_img, True)
+    face_list, embedding_tyep = face_embedding(INS_MODEL, webcap_img, True)
 
     if len(face_list) == 0:
-        return "没有检测到人脸", None
+        if embedding_tyep:
+            return "画面中人脸太小,人脸要求大小: w>100pix, h>100pix", None
+        else:
+            return "没有检测到人脸", None
 
     face = face_list[0]
 
@@ -57,7 +60,6 @@ def add_face(webcap_img, face_name):
     else:
         FaceDB[face_name] = [face]
         FaceImgDB[face_name] = os.path.join(save_dir, f"{img_name}.jpg")
-
 
     show_img = webcap_img.copy()
     bbox = face['bbox']

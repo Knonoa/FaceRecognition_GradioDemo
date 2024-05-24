@@ -20,10 +20,13 @@ def get_face_info(input_img, threshold):
     if webcap_img is None:
         return "没有获取到图像", None
 
-    face_list = face_embedding(INS_MODEL, webcap_img, True)
+    face_list, embedding_tyep = face_embedding(INS_MODEL, webcap_img, True)
 
     if len(face_list) == 0:
-        return "没有检测到人脸", None
+        if embedding_tyep:
+            return "画面中人脸太小,人脸要求大小: w>100pix, h>100pix", None
+        else:
+            return "没有检测到人脸", None
 
     face = face_list[0]
     unknow_embedding = face['embedding'].reshape((1, -1))

@@ -4,37 +4,43 @@ import math
 import numpy as np
 import json
 
-def face_embedding(det_model,img, ret_center=False):
+
+def face_embedding(det_model, img, ret_center=False):
     det_res = det_model.get(img)
 
     if len(det_res) == 0:
-        return []
+        return [],None
 
     img_h, img_w = img.shape[:2]
     img_center_x = img_w / 2
 
     bbox_list = []
     center_d_list = []
+    det_clear = []
     for face in det_res:
         x1, y1, x2, y2 = face['bbox']
         x1 = int(x1)
         y1 = int(y1)
         x2 = int(x2)
         y2 = int(y2)
+        if x2 - x1 < 30 or y2 - y1 < 30:
+            continue
+        det_clear.append(face)
+
         bbox_list.append([x1, y1, x2, y2])
 
-        box_c_x = (x1 + x2) / 2
+        box_c_x = x1 + (x2-x1)/2
 
-        center_d_list.append(img_center_x - box_c_x)
+        center_d_list.append(box_c_x - img_center_x)
 
     arg_sort = np.argsort(center_d_list)
-    output = [det_res[i] for i in arg_sort]
+    output = [det_clear[i] for i in arg_sort]
 
     if not ret_center:
-        return output
+        return output,True
     else:
         center_sort = np.argsort([abs(i) for i in center_d_list])
-        return [output[center_sort[0]]]
+        return [output[center_sort[0]]],True
 
 
 def cut_img(img, x, y, w, h, expand=1, border=True):
@@ -66,7 +72,6 @@ def cut_img(img, x, y, w, h, expand=1, border=True):
     return output_img, [x1, y1, x2 - x1, y2 - y1]
 
 
-
 def read_json(json_path):
     with open(json_path, 'r') as f:
         res = json.load(f)
@@ -76,6 +81,7 @@ def read_json(json_path):
 def save_json(json_path, info):
     with open(json_path, 'w') as f:
         json.dump(info, f, indent=4, ensure_ascii=False)
+
 
 def feature_compare(feature1, feature2):
     diff = np.subtract(feature1, feature2)
