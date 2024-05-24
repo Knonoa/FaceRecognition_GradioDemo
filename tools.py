@@ -2,12 +2,9 @@ from setting import *
 import cv2
 import math
 import numpy as np
+import json
 
-
-def det_face(det_model,img, ret_center=False):
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    print(img.shape)
-
+def face_embedding(det_model,img, ret_center=False):
     det_res = det_model.get(img)
 
     if len(det_res) == 0:
@@ -31,13 +28,13 @@ def det_face(det_model,img, ret_center=False):
         center_d_list.append(img_center_x - box_c_x)
 
     arg_sort = np.argsort(center_d_list)
-    bbox_list_sort = [bbox_list[i] for i in arg_sort]
+    output = [det_res[i] for i in arg_sort]
 
     if not ret_center:
-        return bbox_list_sort
+        return output
     else:
         center_sort = np.argsort([abs(i) for i in center_d_list])
-        return bbox_list[center_sort[0]]
+        return [output[center_sort[0]]]
 
 
 def cut_img(img, x, y, w, h, expand=1, border=True):
@@ -67,3 +64,21 @@ def cut_img(img, x, y, w, h, expand=1, border=True):
         output_img = cv2.copyMakeBorder(output_img, 100, 100, 100, 100, cv2.BORDER_CONSTANT, value=(255, 255, 255))
 
     return output_img, [x1, y1, x2 - x1, y2 - y1]
+
+
+
+def read_json(json_path):
+    with open(json_path, 'r') as f:
+        res = json.load(f)
+    return res
+
+
+def save_json(json_path, info):
+    with open(json_path, 'w') as f:
+        json.dump(info, f, indent=4, ensure_ascii=False)
+
+def feature_compare(feature1, feature2):
+    diff = np.subtract(feature1, feature2)
+    dist = np.sum(np.square(diff), 1)
+
+    return dist

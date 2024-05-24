@@ -4,7 +4,7 @@ import time
 from insightface.app import FaceAnalysis
 
 # app = FaceAnalysis(name='buffalo_sc',allowed_modules=['detection'])  # 使用的检测模型名为buffalo_sc
-app = FaceAnalysis(name='antelopev2')  # 使用的检测模型名为buffalo_sc
+app = FaceAnalysis(name='buffalo_l')  # 使用的检测模型名为buffalo_sc
 print(app.models.keys())
 app.prepare(ctx_id=-1, det_size=(640, 640))  # ctx_id小于0表示用cpu预测，det_size表示resize后的图片分辨率
 

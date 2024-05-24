@@ -1,16 +1,14 @@
 import os
 import time
 import uuid
-import shutil
 import tempfile
-import math
+
 import cv2
 import gradio as gr
 import importlib.util
-import face_recognition
+
 import numpy as np
 
-from setting import *
 from tools import *
 
 # init
@@ -30,47 +28,45 @@ def import_module_by_path(module_name, module_path):
 
 
 def add_face(webcap_img, face_name):
-    global FaceDB, FACE_IMG_DIR, DET_MODEL
+    global FaceDB, FACE_IMG_DIR, INS_MODEL
+    webcap_img = cv2.cvtColor(webcap_img, cv2.COLOR_RGB2BGR)
+
+    if webcap_img is None or face_name is None:
+        return "没有获取到图像", None
 
     face_name = face_name.strip()
+    if len(face_name) == 0:
+        return "没有获取到人员名称", None
 
-    if webcap_img is None:
-        return "错误! 没有收到任何文件", None
+    face_list = face_embedding(INS_MODEL, webcap_img, True)
 
-    if len(face_name.strip()) == 0:
-        return "错误! 必须填写人员名称", None
+    if len(face_list) == 0:
+        return "没有检测到人脸", None
 
-    start_time = time.time()
+    face = face_list[0]
 
-    face_det = det_face(DET_MODEL, webcap_img, True)
-    if len(face_det) == 0:
-        return f"错误! 照片中没有人脸", None
-
-    face_cut, (face_x, face_y, face_w, face_h) = cut_img(webcap_img, face_det[0], face_det[1],
-                                                         face_det[2] - face_det[0], face_det[3] - face_det[1],
-                                                         expand=1.2)
-
-    face_encodings = face_recognition.face_encodings(face_cut)
-
-    if len(face_encodings) == 0:
-        return f"编码错误", None
-
-    face_encodings = face_encodings[0]
-
-    # 拷贝文件到指定目录
+    img_name = uuid.uuid4()
     save_dir = os.path.join(FACE_IMG_DIR, face_name)
     os.makedirs(save_dir, exist_ok=True)
-    new_name = f"{uuid.uuid4()}.jpg"
-    cv2.imwrite(os.path.join(save_dir, new_name), cv2.cvtColor(face_cut, cv2.COLOR_BGR2RGB))
 
-    end_time = time.time()
+    cv2.imwrite(os.path.join(save_dir, f"{img_name}.jpg"), webcap_img)
+    np.savez(os.path.join(save_dir, f"{img_name}.npy"), **face)
 
-    if face_name not in FaceDB.keys():
-        FaceDB[face_name] = [face_encodings]
-        return f"新增人脸数据: {face_name}\n耗时:{end_time - start_time}s", face_cut
+    if face_name in FaceDB.keys():
+        FaceDB[face_name].append(face)
     else:
-        FaceDB[face_name].append(face_encodings)
-        return f"人脸数据已存在, 新增人脸数据: {face_name}, 当前人员有{len(FaceDB[face_name])}条数据\n耗时:{end_time - start_time}s", face_cut
+        FaceDB[face_name] = [face]
+        FaceImgDB[face_name] = os.path.join(save_dir, f"{img_name}.jpg")
+
+
+    show_img = webcap_img.copy()
+    bbox = face['bbox']
+
+    cv2.rectangle(show_img, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), color=(0, 255, 0), thickness=5)
+
+    show_img = cv2.cvtColor(show_img, cv2.COLOR_BGR2RGB)
+
+    return "录入成功", show_img
 
 
 demo = gr.Blocks(title="人脸识别")
@@ -106,7 +102,7 @@ with demo:
             with gr.Row():
                 clear_face_button = gr.ClearButton(value="清空表单",
                                                    components=[face_add_input_img, input_face_name,
-                                                               add_info])
+                                                               add_info, add_output_img])
 
     add_face_button.click(add_face,
                           [face_add_input_img, input_face_name],
@@ -116,5 +112,5 @@ if __name__ == '__main__':
     demo.launch(
         server_name="0.0.0.0",
         server_port=11000,
-        share=True
+        # share=True
     )

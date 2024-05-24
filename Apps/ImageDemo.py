@@ -5,6 +5,7 @@ import cv2
 import gradio as gr
 import numpy as np
 import face_recognition
+from sklearn import preprocessing
 from insightface.app import FaceAnalysis
 from setting import *
 from tools import *
@@ -13,50 +14,45 @@ det_app = FaceAnalysis(name='buffalo_sc', allowed_modules=['detection'])
 
 
 def get_face_info(input_img, threshold):
-    global FaceDB, FACE_IMG_DIR, DET_MODEL
+    global FaceDB, INS_MODEL, DEFAULT_THRESHOLD
+    webcap_img = cv2.cvtColor(input_img, cv2.COLOR_RGB2BGR)
 
-    if input_img is None:
-        return None, "没有图片输入"
+    if webcap_img is None:
+        return "没有获取到图像", None
 
-    start_time = time.time()
+    face_list = face_embedding(INS_MODEL, webcap_img, True)
 
-    face_det = det_face(DET_MODEL, input_img, ret_center=True)
-    if len(face_det) == 0:
-        return None, "没有检测到人脸"
+    if len(face_list) == 0:
+        return "没有检测到人脸", None
 
-    face_cut, (face_x, face_y, face_w, face_h) = cut_img(input_img, face_det[0], face_det[1],
-                                                         face_det[2] - face_det[0], face_det[3] - face_det[1],
-                                                         expand=1.2)
+    face = face_list[0]
+    unknow_embedding = face['embedding'].reshape((1, -1))
+    unknow_embedding = preprocessing.normalize(unknow_embedding)
 
-    face_encoding = face_recognition.face_encodings(face_cut)
+    db_face_embedding_list = []
+    db_face_name_list = []
+    for face_name_info, face_data_list in FaceDB.items():
+        for face_data in face_data_list:
+            embedding = face_data['embedding'].reshape((1, -1))
+            embedding = preprocessing.normalize(embedding)
+            db_face_embedding_list.append(embedding.tolist()[0])
+            db_face_name_list.append(face_name_info)
 
+    db_face_embedding_list = np.array(db_face_embedding_list)
+    dist_list = feature_compare(db_face_embedding_list, unknow_embedding)
 
+    dist_argsort = np.argsort(dist_list)
 
-    all_face_embedding = []
-    all_face_name = []
-    for face_name, face_list in FaceDB.items():
-        for face in face_list:
-            all_face_embedding.append(face)
-            all_face_name.append(face_name)
-
-    scores = face_recognition.face_distance(all_face_embedding, face_encoding[0])
-    scores_arg = np.argsort(scores)[0]
-
-    end_time = time.time()
-
-    if scores[scores_arg] > threshold:
-        return None, "未知人员"
-
-    else:
-        output_face_name = all_face_name[scores_arg]
-        output_score = scores[scores_arg]
-
-        face_name_dir = os.path.join(FACE_IMG_DIR, output_face_name)
-        show_img_path = os.path.join(face_name_dir, os.listdir(face_name_dir)[0])
+    min_dist = dist_list[dist_argsort[0]]
+    if min_dist < threshold:
+        min_dist_name = db_face_name_list[dist_argsort[0]]
+        show_img_path = FaceImgDB[min_dist_name]
         show_img = cv2.imread(show_img_path)
         show_img = cv2.cvtColor(show_img, cv2.COLOR_BGR2RGB)
+        return show_img, f"检测得到人员: {min_dist_name}, 欧式距离: {min_dist}"
 
-        return show_img, f"检测到人员: {output_face_name}, 欧式距离: {output_score}, 识别阈值: {threshold}, 耗时: {end_time-start_time}"
+    else:
+        return None, f"未知人员,最小距离 {min_dist}"
 
 
 with gr.Row():
