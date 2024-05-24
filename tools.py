@@ -9,7 +9,7 @@ def face_embedding(det_model, img, ret_center=False):
     det_res = det_model.get(img)
 
     if len(det_res) == 0:
-        return [],None
+        return [], None
 
     img_h, img_w = img.shape[:2]
     img_center_x = img_w / 2
@@ -29,18 +29,17 @@ def face_embedding(det_model, img, ret_center=False):
 
         bbox_list.append([x1, y1, x2, y2])
 
-        box_c_x = x1 + (x2-x1)/2
+        box_c_x = x1 + (x2 - x1) / 2
 
-        center_d_list.append(box_c_x - img_center_x)
+        center_d_list.append(abs(img_center_x - box_c_x))
 
     arg_sort = np.argsort(center_d_list)
     output = [det_clear[i] for i in arg_sort]
 
     if not ret_center:
-        return output,True
+        return output, True
     else:
-        center_sort = np.argsort([abs(i) for i in center_d_list])
-        return [output[center_sort[0]]],True
+        return [output[arg_sort[0]]], True
 
 
 def cut_img(img, x, y, w, h, expand=1, border=True):
